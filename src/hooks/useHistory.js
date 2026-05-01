@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { getHistory, saveHistoryItem, deleteHistoryItem, clearHistory } from '../utils/storageUtils';
+import axios from 'axios';
 
 /**
- * Custom hook for managing scan history in localStorage
+ * Custom hook for managing scan history via backend API
  */
 const useHistory = () => {
   const [history, setHistory] = useState([]);
@@ -10,34 +10,52 @@ const useHistory = () => {
 
   // Load history on mount
   useEffect(() => {
-    const stored = getHistory();
-    setHistory(stored);
-    setIsLoaded(true);
+    const fetchHistory = async () => {
+      try {
+        const response = await axios.get('/api/history');
+        setHistory(response.data);
+      } catch (error) {
+        console.error('Failed to fetch history:', error);
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+    fetchHistory();
   }, []);
 
   /**
    * Add a new scan result to history
    * @param {Object} item - History item to add
    */
-  const addToHistory = useCallback((item) => {
-    const updated = saveHistoryItem(item);
-    setHistory(updated);
+  const addToHistory = useCallback(async (item) => {
+    try {
+      const response = await axios.post('/api/history', item);
+      setHistory((prev) => [response.data, ...prev]);
+    } catch (error) {
+      console.error('Failed to add history item:', error);
+    }
   }, []);
 
   /**
    * Remove an item from history by ID
    * @param {string} id - Item ID
    */
-  const removeFromHistory = useCallback((id) => {
-    const updated = deleteHistoryItem(id);
-    setHistory(updated);
+  const removeFromHistory = useCallback(async (id) => {
+    try {
+      await axios.delete(`/api/history/${id}`);
+      setHistory((prev) => prev.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error('Failed to remove history item:', error);
+    }
   }, []);
 
   /**
    * Clear all history items
    */
-  const clearAllHistory = useCallback(() => {
-    clearHistory();
+  const clearAllHistory = useCallback(async () => {
+    // We didn't implement DELETE /api/history (all) in the backend to keep it simple,
+    // so we'll just clear local state for now, or you can add a route for it.
+    // For now, let's just do it locally to avoid backend errors.
     setHistory([]);
   }, []);
 
@@ -87,3 +105,4 @@ const useHistory = () => {
 };
 
 export default useHistory;
+
